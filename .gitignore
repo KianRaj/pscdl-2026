@@ -1,0 +1,38 @@
+# Datasets (too large for git)
+datasets/
+*.zip
+
+# Model checkpoints (large binary files)
+models/*.pth
+*.pt
+
+# Output files
+outputs/
+output_masks/
+test_submission/
+test_submission_v1/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+run_log.txt
+
+# IDE
+.vscode/
+.idea/
+
+# Temp
+tmp/
+*.tmp

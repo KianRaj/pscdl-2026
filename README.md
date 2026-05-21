@@ -256,6 +256,146 @@ A chronological log of every edit and the reason behind it. Most-recent change f
 
 ---
 
+## Datasets — download & layout
+
+This repo ships **code only**. The datasets must be downloaded separately.
+Place them inside `datasets/` so the paths inside `submit.py` /
+`run_pipeline.py` line up.
+
+### 1. PSCDL 2026 — sample dev set (Phase 1, with GT)
+
+5 short videos with per-interval ground-truth masks. Used for ablation
+and for tuning filter thresholds.
+
+- **Source**: shared by the organisers (`PSCDL_2026.zip`, e-mail from
+  Shikha Gupta, contest@vehant.com).
+- **Place under**: `datasets/PSCDL_2026/`
+  ```
+  datasets/PSCDL_2026/
+    video_1/ video_1.mp4  video_1.txt  mask1.png … mask5.png
+    video_2/ … video_5/   PSCDL_2026.pdf
+  ```
+- Each `video_<i>.txt` declares `P` (persistence threshold, s),
+  `C` (cooldown, s), the object-introduction times, and the
+  per-interval mask names.
+- **Used by**: `run_pipeline.py` (main entry) and the
+  `PSCDL_2026_Pipeline.ipynb` walk-through.
+
+### 2. PSCDL 2026 — final test set (Phase 2, no GT)
+
+5 longer videos for the leaderboard submission. **No GT** released.
+
+- **Source**: `PSCDL2026_Test.zip` from the organisers.
+- **Place under**: `datasets/PSCDL2026_Test/test_videos/`
+  ```
+  datasets/PSCDL2026_Test/test_videos/
+    test_1.mp4 … test_5.mp4
+  ```
+- **Used by**: `submit.py` — running `python submit.py` writes
+  `outputs/test_submission/<vid>/output_masks/mask_NNNN.png`
+  for each video.
+
+### 3. VL-CMU-CD — change-detection training pairs (image-level)
+
+3 732 train + 429 test image pairs `(t0, t1)` with binary change masks.
+Used to **train the Siamese ResNet50** that the pipeline now uses as a
+secondary low-contrast change signal.
+
+- **Source**: Hugging Face → `Flourish/VL-CMU-CD`
+  ```bash
+  wget https://huggingface.co/datasets/Flourish/VL-CMU-CD/resolve/main/VL-CMU-CD-binary255.zip \
+       -O VL-CMU-CD-binary255.zip
+  unzip VL-CMU-CD-binary255.zip -d datasets/VL-CMU-CD/
+  ```
+- **Place under**: `datasets/VL-CMU-CD/VL-CMU-CD-binary255/`
+  ```
+  datasets/VL-CMU-CD/VL-CMU-CD-binary255/
+    train/{t0,t1,mask}/*.png   (3 732 files each, 512×512)
+    test/ {t0,t1,mask}/*.png   (  429 files each)
+  ```
+- **Used by**: `train_model()` inside `run_pipeline.py`. Skip if you
+  just want to run inference — the pre-trained checkpoint
+  `models/siamese_change_best.pth` (val F1 = 0.7989) is what's loaded
+  at inference.
+
+### 4. PSCD — panoramic semantic change detection (image-level)
+
+770 panoramic (4096 × 1152) image pairs with binary change masks.
+Mixed with VL-CMU-CD when training the Siamese model — adds urban
+scene variety and tiny-object examples.
+
+- **Source**: AIST Sakuradaken → <https://sakuradaken.net/pscd/>
+  — agree to the terms-of-use, then click "Download (Main dataset)"
+  in the browser (the form-POST endpoint blocks `curl`/`wget`).
+- **Place under**: `datasets/PSCD/`
+  ```
+  datasets/PSCD/
+    t0/, t1/                (770 pairs, 4096×1152)
+    mask/, mask_t0/, mask_t1/
+    label_t0_integ/, label_t1_integ/, …  (extra semantic labels — unused)
+  ```
+- **Used by**: `train_model()` inside `run_pipeline.py` (combined
+  with VL-CMU-CD; random 512×512 crops at train time).
+- **Citation**: Kataoka et al., "PSCD: Panoramic Semantic Change
+  Detection", 2018, arXiv 1811.11985.
+
+### 5. SAM3 checkpoint (Meta) — used at inference
+
+Downloaded automatically via `huggingface_hub` the first time
+`run_pipeline.load_sam3()` is called. The file ends up at:
+```
+~/.cache/huggingface/hub/models--facebook--sam3/snapshots/<hash>/sam3.pt
+```
+≈ 3.4 GB. You must accept the SAM 3 model licence on Hugging Face
+(`facebook/sam3`) once and have `huggingface-cli login` set up so the
+download has auth.
+
+### 6. YOLOv8m — used at inference
+
+Downloaded automatically by `ultralytics` (`YOLO('yolov8m.pt')`) into
+the working directory (`./yolov8m.pt`, ≈ 50 MB) on first run.
+
+### Setting expectations on disk usage
+
+| Item | Size | Notes |
+|---|---|---|
+| PSCDL_2026 (sample) | ~700 MB | required to reproduce sample-set F1 = 0.8465 |
+| PSCDL2026_Test (final) | ~3.4 GB | required to reproduce the submission masks |
+| VL-CMU-CD | ~3.5 GB | required only if re-training the Siamese model |
+| PSCD | ~12 GB | required only if re-training the Siamese model |
+| SAM3 ckpt | ~3.4 GB | auto-downloaded on first run |
+| YOLOv8m ckpt | ~50 MB | auto-downloaded on first run |
+| Siamese ckpt | ~95 MB | shipped — `models/siamese_change_best.pth` |
+| **Inference-only** | **~7 GB** | sample + test set + SAM3 + YOLO + Siamese |
+| **Full reproducible** | **~22 GB** | adds VL-CMU-CD + PSCD for retraining |
+
+### Quick setup (inference only)
+
+```bash
+# 1. Clone
+git clone https://github.com/KianRaj/pscdl-2026.git
+cd pscdl-2026
+
+# 2. Environment (depth-pro env: PyTorch 2.4 + CUDA 12.1)
+#    See "Environment" section below for the full requirement list.
+
+# 3. Drop the two challenge zips under datasets/
+mkdir -p datasets
+unzip PSCDL_2026.zip       -d datasets/   # if you have the sample set
+unzip PSCDL2026_Test.zip   -d datasets/   # final test set
+
+# 4. Drop the Siamese checkpoint we shipped under models/
+mkdir -p models
+# (siamese_change_best.pth is NOT in this repo — too big.
+#  Either re-train with run_pipeline.train_model() or request the file.)
+
+# 5. Run the submission entry point
+TMPDIR=/tmp CUDA_VISIBLE_DEVICES=0 \
+  /media/data_dump/conda/miniconda3/envs/depth-pro/bin/python -u submit.py
+```
+
+---
+
 ## File layout
 
 ```

@@ -1,5 +1,7 @@
 # PSCDL 2026 — Persistent Scene Change Detection Pipeline
 
+**Project page**: <https://KianRaj.github.io/pscdl-2026/>
+
 **Submission for the Vehant PSCDL 2026 Challenge.**
 
 Detects long-duration scene changes in fixed-camera surveillance video (abandoned objects,
@@ -96,10 +98,10 @@ Five development videos (`datasets/PSCDL_2026/`) with known GT masks:
 The challenge test set (`datasets/PSCDL2026_Test/test_videos/`) has **no ground truth**;
 we keep multiple iterations side-by-side so the user can pick.
 
-| Version | Zip path | Pipeline config |
-|---|---|---|
-| **v1** | `outputs/PSCDL2026_submission_v1.zip` | Baseline + relaxed filters for test set: `recency=0.30`, `motion=6`, `YOLO=0.55` |
-| **v2** | `outputs/PSCDL2026_submission_v2.zip` *(generating)* | v1 **+ upper-frame centroid filter** (reject blobs with `cy < H/8`) |
+| Version | Zip path | Pipeline config | Outcome |
+|---|---|---|---|
+| **v1** | `outputs/PSCDL2026_submission_v1.zip` (2.5 MB) | Baseline + relaxed filters for test set: `recency=0.30`, `motion=6`, `YOLO=0.55` | 557 non-blank masks total |
+| **v2** | `outputs/PSCDL2026_submission_v2.zip` (2.4 MB) | v1 **+ upper-frame centroid filter** (`cy < H/8` rejected) | 497 non-blank masks total — **test_5 –31 %, test_2 –11 %**, others unchanged |
 
 ### Detection counts per video (v1)
 

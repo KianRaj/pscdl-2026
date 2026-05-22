@@ -1,8 +1,20 @@
 # PSCDL 2026 — Persistent Scene Change Detection Pipeline
 
-**Project page**: <https://KianRaj.github.io/pscdl-2026/>
+<p align="center">
+  <a href="https://kianraj.github.io/pscdl-2026/">
+    <img alt="Project Page" src="https://img.shields.io/badge/🌐_Project_Page-kianraj.github.io%2Fpscdl--2026-8b1e1e?style=for-the-badge" />
+  </a>
+  <a href="https://github.com/KianRaj/pscdl-2026/releases/latest">
+    <img alt="Latest Release" src="https://img.shields.io/badge/⬇_Release-v1.0_(checkpoint%20%2B%20masks)-2c5282?style=for-the-badge" />
+  </a>
+</p>
 
-**Submission for the Vehant PSCDL 2026 Challenge.**
+<p align="center">
+  <a href="https://kianraj.github.io/pscdl-2026/"><b>🔗 Live Demo / Project Page →&nbsp;https://kianraj.github.io/pscdl-2026/</b></a>
+</p>
+
+**Submission for the Vehant PSCDL 2026 Challenge** by Aman Kumar (IIIT Delhi).
+Achieves **F1 = 0.8465** on the released sample set with **Precision = 0.9429**.
 
 Detects long-duration scene changes in fixed-camera surveillance video (abandoned objects,
 parked vehicles, debris) and generates per-second binary change masks.

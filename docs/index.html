@@ -19,7 +19,7 @@
       <p class="subtitle">Real-time pipeline for fixed-camera surveillance video — detecting abandoned objects, parked vehicles, and debris using a dual-background pixel finite-state machine, trained Siamese network, YOLOv8 person filter, and SAM3 segmentation.</p>
 
       <div class="authors">
-        <span>Aman Kumar Raj <sup>1</sup></span>
+        <span>Aman Kumar <sup>1</sup></span>
       </div>
       <div class="affiliations">
         <span><sup>1</sup>IIIT Delhi</span>
@@ -87,48 +87,10 @@
     <h2>Architecture</h2>
     <p>The pipeline takes a single video and a pair of parameters <code>(p, c)</code> and emits one binary mask per second.</p>
 
-    <div class="arch-diagram">
-      <pre>
-Video  ─▶  Build clean background (median, first 15 s)
-                            │
-                            ▼
-              ┌─────────────────────────────┐
-              │ Dual-Background PFSM         │  ◀──┐
-              │ • static median + slow EMA  │     │
-              │ • per-pixel hit counter      │     │
-              └─────────────────────────────┘     │
-                            │                     │
-       OR-combined with     │  Siamese ResNet50   │
-       low-contrast signal  │  (PSCD + VL-CMU-CD) │
-                            ▼                     │
-            ┌────────────────────────────────────┐│
-            │  Confirmed blobs  (P ≤ hit &lt; C)    ││
-            └────────────────────────────────────┘│
-                            │                     │
-                            ▼                     │
-            ╔════════════════════════════════════╗│
-            ║  6-stage filter cascade            ║│
-            ║   ① arrival time  ≥ bg + 5 + p     ║│
-            ║   ② upper-frame   cy > H/8         ║│
-            ║   ③ recency       newly% ≥ 0.30    ║│
-            ║   ④ motion       <  6 px frame-Δ   ║│
-            ║   ⑤ YOLOv8m       overlap < 0.55   ║│
-            ║   ⑥ spatial cooldown               ║│
-            ╚════════════════════════════════════╝│
-                            │                     │
-                            ▼                     │
-                  SAM3 segmentation               │
-                  • 100 px margin                 │
-                  • hit-region centroid seed      │
-                  • size-aware text prompt        │
-                            │                     │
-                            ▼                     │
-        Per-second mask  =  ⋃ active SAM3 masks ──┘
-                            │
-                            ▼
-                    output_masks/mask_NNNN.png
-      </pre>
-    </div>
+    <figure class="arch-figure">
+      <img src="assets/architecture.svg" alt="PSCDL 2026 pipeline architecture: video → dual-background PFSM (with Siamese OR-signal) → 6-stage filter cascade → SAM3 segmentation → per-second masks" />
+      <figcaption>The pipeline takes a single video and dynamic <code>(p, c)</code> parameters and emits one binary mask per second.</figcaption>
+    </figure>
   </section>
 
   <!-- ── Pipeline components ───────────────────────────────────────────── -->
@@ -259,8 +221,8 @@ generate_mask(
   <section class="container content">
     <h2>Citation</h2>
     <pre class="code-block">
-@misc{raj2026pscdl,
-  author = {Raj, Aman Kumar},
+@misc{kumar2026pscdl,
+  author = {Kumar, Aman},
   title  = {PSCDL 2026: Persistent Scene Change Detection &amp; Localization},
   year   = {2026},
   howpublished = {\url{https://github.com/KianRaj/pscdl-2026}},
@@ -273,7 +235,7 @@ generate_mask(
       <p>
         Built for the Vehant <strong>PSCDL 2026</strong> challenge. SAM3 by Meta AI Research, YOLOv8 by Ultralytics. Page layout inspired by <a href="https://chumsy0725.github.io/GS-DIFF/" target="_blank" rel="noopener">GS-DIFF</a>.
       </p>
-      <p class="muted">&copy; 2026 Aman Kumar Raj &middot; <a href="https://github.com/KianRaj/pscdl-2026" target="_blank" rel="noopener">github.com/KianRaj/pscdl-2026</a></p>
+      <p class="muted">&copy; 2026 Aman Kumar &middot; <a href="https://github.com/KianRaj/pscdl-2026" target="_blank" rel="noopener">github.com/KianRaj/pscdl-2026</a></p>
     </div>
   </footer>
 

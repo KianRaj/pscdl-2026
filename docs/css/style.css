@@ -196,6 +196,28 @@ code {
 em { color: var(--color-text); font-style: italic; }
 
 /* ─── Architecture diagram ─────────────────────────────────── */
+.arch-figure {
+  margin: 24px 0 8px;
+  text-align: center;
+}
+
+.arch-figure img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: white;
+  box-shadow: var(--shadow-md);
+  padding: 8px;
+}
+
+.arch-figure figcaption {
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
 .arch-diagram pre {
   background: #fdfcf9;
   border: 1px solid var(--color-border);

@@ -1,0 +1,17 @@
+PSCDL 2026 Challenge — Team Information
+========================================
+
+Submission Type     : Individual
+
+Name                : Aman Kumar
+Role / Affiliation  : M.Tech student, Computer Science & Engineering (CSE),
+                      Indraprastha Institute of Information Technology, Delhi (IIIT-Delhi)
+Email               : aman24012@iiitd.ac.in
+
+Team Members        : 1 (individual submission)
+
+Challenge           : PSCDL 2026 — Persistent Scene Change Detection
+Function implemented: generate_mask(p: int, c: int, video_path: str) -> None
+Parameters used for the released test set: p = 60 s, c = 90 s
+(Implementation is generic — p and c are read dynamically from the function
+ arguments and are NOT hard-coded.)

@@ -94,6 +94,7 @@ def generate_mask(p: float = 60.0, c: float = 90.0,
     # ── 1. Build clean background from first 15s ─────────────────────────────
     bg = rp.build_background(video_path)
     H, W = bg.shape[:2]
+    clean_ref = bg.copy()   # immutable snapshot of the clean scene (for FP filters)
 
     # ── 2. Setup PFSM with given p, c (in seconds → frames) ──────────────────
     cap = cv2.VideoCapture(video_path)
@@ -160,7 +161,8 @@ def generate_mask(p: float = 60.0, c: float = 90.0,
             active, newly_absorbed = tracker.step(
                 t, blobs, frame, _models['sam3_proc'], _models['yolo'],
                 pfsm_hit=pfsm.hit, P_fr=P_fr, recency_sec=15.0,
-                eff_fps=eff_fps, P_sec=p, bg_window_sec=15.0)
+                eff_fps=eff_fps, P_sec=p, bg_window_sec=15.0,
+                bg_long=pfsm.bg_long, clean_ref=clean_ref)
 
             for obj in newly_absorbed:
                 if obj.mask is not None:

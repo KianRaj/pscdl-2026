@@ -64,7 +64,7 @@ def _ensure_models_loaded():
 
 # ── Main required function ────────────────────────────────────────────────────
 
-def generate_mask(p: float = 60.0, c: float = 90.0,
+def generate_mask(p: int = 60, c: int = 90,
                   video_path: str = "",
                   output_dir: str = "output_masks") -> None:
     """

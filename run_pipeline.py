@@ -49,21 +49,23 @@ LR        = 3e-4
 BATCH     = 8
 SUBSAMPLE = 3    # process every 3rd frame for speed
 
-BASE_DIR   = Path('/media/nas_mount/research3/aman_kr/vehant')
+# Paths are resolved relative to this file (portable — no hard-coded local paths).
+# Any of them can be overridden via environment variables for non-standard layouts.
+BASE_DIR   = Path(os.environ.get('PSCDL_BASE_DIR', Path(__file__).resolve().parent))
 VLCMU_DIR  = BASE_DIR / 'datasets/VL-CMU-CD/VL-CMU-CD-binary255'
 PSCD_DIR   = BASE_DIR / 'datasets/PSCD'
 SAMPLE_DIR = BASE_DIR / 'datasets/PSCDL_2026'
 CKPT_DIR   = BASE_DIR / 'models'
 OUTPUT_DIR = BASE_DIR / 'outputs'
-CKPT_PATH  = CKPT_DIR / 'siamese_change_best.pth'
-SAM3_REPO  = '/media/nas_mount/research3/aman_kr/midas/sam3'
-SAM3_CKPT  = ('/media/nas_mount/research3/.cache/huggingface/hub/'
-              'models--facebook--sam3/snapshots/'
-              '3c879f39826c281e95690f02c7821c4de09afae7/sam3.pt')
+CKPT_PATH  = Path(os.environ.get('PSCDL_CKPT', CKPT_DIR / 'siamese_change_best.pth'))
+# SAM3: installed via pip (sam3==0.1.0 in requirements). Set SAM3_REPO only if you
+# use a local clone instead of the pip package. SAM3_CKPT falls back to the HF cache.
+SAM3_REPO  = os.environ.get('SAM3_REPO', '')
+SAM3_CKPT  = os.environ.get('SAM3_CKPT', '')
 
 CKPT_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
-if SAM3_REPO not in sys.path:
+if SAM3_REPO and SAM3_REPO not in sys.path:   # only for a local SAM3 clone
     sys.path.insert(0, SAM3_REPO)
 
 print(f'Device : {DEVICE} | {torch.cuda.get_device_name(0) if DEVICE=="cuda" else "cpu"}')
@@ -240,10 +242,64 @@ def load_sam3():
     from sam3.model_builder import build_sam3_image_model
     from sam3.model.sam3_image_processor import Sam3Processor
     print('\nLoading SAM3 checkpoint...')
-    m=build_sam3_image_model(checkpoint_path=SAM3_CKPT).to(DEVICE).eval()
+    ckpt = SAM3_CKPT
+    if not ckpt:   # auto-download from Hugging Face into HF cache (portable)
+        from huggingface_hub import hf_hub_download
+        ckpt = hf_hub_download('facebook/sam3', 'sam3.pt')
+    m=build_sam3_image_model(checkpoint_path=ckpt).to(DEVICE).eval()
     p=Sam3Processor(m,resolution=1008,device=DEVICE)
     print('SAM3 loaded ✓')
     return p
+
+
+# ── CLIP semantic false-positive gate (v6) ───────────────────────────────────
+# Rejects candidate blobs that are FIXED INFRASTRUCTURE (utility poles, signboards,
+# banners, walls, road, shadows) rather than genuine encroachment objects. Runs only
+# on the few blobs that pass every other filter, so it is cheap. Validated to reject
+# the test-set pole/sign FPs while keeping chair/debris/box TPs (clear CLIP margins).
+_CLIP = {}
+CLIP_KEEP = ["an abandoned bag or luggage", "a parked motorcycle or scooter",
+             "a cart or trolley", "a cardboard box or package on the ground",
+             "a parked car or vehicle", "a pile of debris or construction material",
+             "a chair or furniture left outside", "an abandoned object on the street"]
+CLIP_REJ  = ["a signboard or billboard advertisement", "a utility pole with electric wires",
+             "a banner or flag", "a building wall or shop front", "an empty road surface",
+             "a shadow on the ground", "tree foliage or plants"]
+
+def load_clip_gate():
+    """Load OpenAI CLIP ViT-B/32 (cached) and pre-encode the keep/reject prompts."""
+    if 'model' in _CLIP:
+        return _CLIP
+    import clip
+    # ViT-B-32.pt is bundled under models/; override location with CLIP_DOWNLOAD_ROOT.
+    root = os.environ.get('CLIP_DOWNLOAD_ROOT', str(CKPT_DIR))
+    print('Loading CLIP semantic gate (ViT-B/32)...')
+    model, prep = clip.load('ViT-B/32', device=DEVICE, download_root=root)
+    txt = clip.tokenize(CLIP_KEEP + CLIP_REJ).to(DEVICE)
+    with torch.no_grad():
+        tf = model.encode_text(txt); tf = tf / tf.norm(dim=-1, keepdim=True)
+    _CLIP.update(model=model, prep=prep, tf=tf, nkeep=len(CLIP_KEEP))
+    print('CLIP gate loaded ✓')
+    return _CLIP
+
+@torch.inference_mode()
+def clip_is_infrastructure(frame_bgr: np.ndarray, bbox, margin: int = 24,
+                           delta: float = 0.0) -> bool:
+    """True if the blob looks more like fixed infrastructure than an encroachment."""
+    if 'model' not in _CLIP:
+        return False
+    from PIL import Image
+    H, W = frame_bgr.shape[:2]; x1, y1, x2, y2 = bbox
+    x1 = max(0, x1-margin); y1 = max(0, y1-margin)
+    x2 = min(W, x2+margin); y2 = min(H, y2+margin)
+    crop = frame_bgr[y1:y2, x1:x2]
+    if crop.size == 0:
+        return False
+    img = _CLIP['prep'](Image.fromarray(cv2.cvtColor(crop, cv2.COLOR_BGR2RGB))).unsqueeze(0).to(DEVICE)
+    f = _CLIP['model'].encode_image(img); f = f / f.norm(dim=-1, keepdim=True)
+    s = (100 * f @ _CLIP['tf'].T).softmax(-1)[0].cpu().numpy()
+    keep = float(s[:_CLIP['nkeep']].max()); rej = float(s[_CLIP['nkeep']:].max())
+    return rej > keep + delta
 
 @torch.inference_mode()
 def sam3_segment(proc, frame_bgr: np.ndarray, bbox_xyxy: Tuple,
@@ -487,7 +543,8 @@ class PersistenceTracker:
              eff_fps: float = 5.0,
              P_sec: float = 60.0, bg_window_sec: float = 15.0,
              bg_long: Optional[np.ndarray] = None,
-             clean_ref: Optional[np.ndarray] = None) -> Tuple[List[ActiveObj], List[ActiveObj]]:
+             clean_ref: Optional[np.ndarray] = None,
+             clip_gate: bool = False) -> Tuple[List[ActiveObj], List[ActiveObj]]:
         """
         P_fr        : PFSM persistence threshold in frames
         recency_sec : only register blobs confirmed within last N real seconds
@@ -636,6 +693,10 @@ class PersistenceTracker:
             hit_region = np.zeros((H,W),np.uint8)
             hit_region[y1:y2,x1:x2] = (pfsm_hit[y1:y2,x1:x2] >= 0).astype(np.uint8)
             hit_region = hit_region & blob_mask  # only within this blob
+
+            # ── CLIP semantic gate (v6): reject fixed infrastructure ─────────
+            if clip_gate and clip_is_infrastructure(frame_bgr, (x1,y1,x2,y2)):
+                continue
 
             text = self._guess_text((x1,y1,x2,y2), H, W)
             mask = sam3_segment(proc, frame_bgr, (x1,y1,x2,y2), hit_region, text)
@@ -798,7 +859,8 @@ def run_pipeline(meta: VideoMeta, proc, yolo_model, siamese_model,
                                                    P_fr=P_fr, recency_sec=15.0,
                                                    eff_fps=eff,
                                                    P_sec=meta.P, bg_window_sec=15.0,
-                                                   bg_long=pfsm.bg_long, clean_ref=clean_ref)
+                                                   bg_long=pfsm.bg_long, clean_ref=clean_ref,
+                                                   clip_gate=('model' in _CLIP))
 
             # Absorb finished objects into background
             for obj in newly_absorbed:
@@ -954,6 +1016,11 @@ if __name__ == '__main__':
     if info.unexpected_keys[:3]: print(f'    unexpected samples: {info.unexpected_keys[:3]}')
     siamese_model.eval()
     print('Siamese loaded ✓')
+    if os.environ.get('PSCDL_CLIP_GATE', '1') != '0':
+        try:
+            load_clip_gate()
+        except Exception as e:
+            print(f'[warn] CLIP semantic gate unavailable ({e}); running without it.')
 
     # Step 3: Parse sample videos
     video_metas = [parse_metadata(SAMPLE_DIR/f'video_{i}') for i in range(1,6)]

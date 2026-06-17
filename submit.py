@@ -33,7 +33,10 @@ from typing import Optional
 
 # Inherit all components from run_pipeline (PFSM, tracker, SAM3, YOLO, Siamese)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, '/media/nas_mount/research3/aman_kr/midas/sam3')
+# SAM3 is installed via pip (sam3==0.1.0). For a local clone instead, set SAM3_REPO.
+_sam3_repo = os.environ.get('SAM3_REPO', '')
+if _sam3_repo:
+    sys.path.insert(0, _sam3_repo)
 
 import run_pipeline as rp
 
@@ -60,6 +63,15 @@ def _ensure_models_loaded():
         sm.eval()
         _models['siamese'] = sm
         print('Siamese loaded ✓')
+    # CLIP semantic FP gate (v6): ON by default; set PSCDL_CLIP_GATE=0 to disable.
+    # Gracefully degrades to the no-gate pipeline if `clip`/weights are unavailable.
+    if os.environ.get('PSCDL_CLIP_GATE', '1') != '0' and _models.get('clip') is None:
+        try:
+            rp.load_clip_gate()
+            _models['clip'] = True
+        except Exception as e:
+            print(f'[warn] CLIP semantic gate unavailable ({e}); running without it.')
+            _models['clip'] = False
 
 
 # ── Main required function ────────────────────────────────────────────────────
@@ -162,7 +174,8 @@ def generate_mask(p: int = 60, c: int = 90,
                 t, blobs, frame, _models['sam3_proc'], _models['yolo'],
                 pfsm_hit=pfsm.hit, P_fr=P_fr, recency_sec=15.0,
                 eff_fps=eff_fps, P_sec=p, bg_window_sec=15.0,
-                bg_long=pfsm.bg_long, clean_ref=clean_ref)
+                bg_long=pfsm.bg_long, clean_ref=clean_ref,
+                clip_gate=bool(_models.get('clip')))
 
             for obj in newly_absorbed:
                 if obj.mask is not None:
@@ -202,13 +215,16 @@ def generate_mask(p: int = 60, c: int = 90,
 # ── CLI: run on the test dataset ──────────────────────────────────────────────
 
 if __name__ == '__main__':
-    TEST_DIR = Path('/media/nas_mount/research3/aman_kr/vehant/datasets/PSCDL2026_Test/test_videos')
-    OUT_BASE = Path('/media/nas_mount/research3/aman_kr/vehant/outputs/test_submission')
+    # Portable defaults (relative to this file); override via env vars if needed.
+    _BASE    = Path(__file__).resolve().parent
+    TEST_DIR = Path(os.environ.get('PSCDL_TEST_DIR', _BASE / 'datasets/PSCDL2026_Test/test_videos'))
+    OUT_BASE = Path(os.environ.get('PSCDL_OUT_DIR',  _BASE / 'outputs/test_submission'))
     OUT_BASE.mkdir(parents=True, exist_ok=True)
 
-    for video_path in sorted(TEST_DIR.glob('test_*.mp4')):
+    # Per the official spec, each output folder is named exactly like the test video file.
+    for video_path in sorted(TEST_DIR.glob('*.mp4')):
         vid_id = video_path.stem
-        out_dir = OUT_BASE / vid_id / 'output_masks'
+        out_dir = OUT_BASE / vid_id
         generate_mask(p=60, c=90, video_path=str(video_path), output_dir=str(out_dir))
 
     print(f'\nAll test videos processed. Outputs → {OUT_BASE}')

@@ -24,3 +24,8 @@ huggingface-hub==0.36.2
 # Utilities / plotting
 matplotlib==3.9.4
 tqdm==4.67.1
+
+# CLIP semantic false-positive gate (v6) — OpenAI CLIP ViT-B/32
+ftfy
+regex
+clip @ git+https://github.com/openai/CLIP.git

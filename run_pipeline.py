@@ -301,6 +301,54 @@ def clip_is_infrastructure(frame_bgr: np.ndarray, bbox, margin: int = 24,
     keep = float(s[:_CLIP['nkeep']].max()); rej = float(s[_CLIP['nkeep']:].max())
     return rej > keep + delta
 
+
+# ── v7/v8 experimental motion filters (target moving-traffic / procession FPs) ──
+def _change_mask(frame_gray, bg_gray, box, thr=30):
+    x1,y1,x2,y2 = box
+    d = cv2.absdiff(frame_gray, bg_gray)
+    m = (d > thr).astype(np.uint8)
+    m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((3,3),np.uint8))
+    out = np.zeros_like(m); out[y1:y2,x1:x2] = m[y1:y2,x1:x2]
+    return out
+
+def temporal_change_iou(video_path, bg_gray, bbox, t, P_sec, n=5, thr=30):
+    """v7: mean pairwise IoU of the change-mask across the object's window.
+    A static object keeps the SAME pixels -> high IoU; drifting traffic -> low IoU."""
+    if video_path is None: return 1.0
+    cap = cv2.VideoCapture(str(video_path)); fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+    secs = np.linspace(max(0.0, t - P_sec), t, n)
+    masks = []
+    for s in secs:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, int(s*fps)); ok,f = cap.read()
+        if ok: masks.append(_change_mask(cv2.cvtColor(f,cv2.COLOR_BGR2GRAY), bg_gray, bbox, thr))
+    cap.release()
+    if len(masks) < 2: return 1.0
+    ious = []
+    for i in range(len(masks)):
+        for j in range(i+1, len(masks)):
+            inter = np.logical_and(masks[i],masks[j]).sum(); uni = np.logical_or(masks[i],masks[j]).sum()
+            if uni > 0: ious.append(inter/uni)
+    return float(np.mean(ious)) if ious else 1.0
+
+def foreground_flow(video_path, bg_gray, bbox, t, thr=30):
+    """v8: mean optical-flow magnitude inside the changed region near time t.
+    Moving vehicles / procession -> high coherent flow; a static object -> ~0."""
+    if video_path is None: return 0.0
+    cap = cv2.VideoCapture(str(video_path)); fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+    x1,y1,x2,y2 = bbox
+    cap.set(cv2.CAP_PROP_POS_FRAMES, int(t*fps)); ok1,f1 = cap.read()
+    ok2,f2 = cap.read()
+    cap.release()
+    if not (ok1 and ok2): return 0.0
+    g1 = cv2.cvtColor(f1,cv2.COLOR_BGR2GRAY); g2 = cv2.cvtColor(f2,cv2.COLOR_BGR2GRAY)
+    chg = _change_mask(g1, bg_gray, bbox, thr) > 0
+    if chg.sum() < 30: return 0.0
+    flow = cv2.calcOpticalFlowFarneback(g1[y1:y2,x1:x2], g2[y1:y2,x1:x2],
+                                        None, 0.5, 3, 15, 3, 5, 1.2, 0)
+    mag = np.sqrt(flow[...,0]**2 + flow[...,1]**2)
+    sub = chg[y1:y2,x1:x2]
+    return float(mag[sub].mean()) if sub.sum() > 0 else 0.0
+
 @torch.inference_mode()
 def sam3_segment(proc, frame_bgr: np.ndarray, bbox_xyxy: Tuple,
                  hit_region: np.ndarray = None,
@@ -544,7 +592,8 @@ class PersistenceTracker:
              P_sec: float = 60.0, bg_window_sec: float = 15.0,
              bg_long: Optional[np.ndarray] = None,
              clean_ref: Optional[np.ndarray] = None,
-             clip_gate: bool = False) -> Tuple[List[ActiveObj], List[ActiveObj]]:
+             clip_gate: bool = False,
+             video_path: Optional[str] = None) -> Tuple[List[ActiveObj], List[ActiveObj]]:
         """
         P_fr        : PFSM persistence threshold in frames
         recency_sec : only register blobs confirmed within last N real seconds
@@ -697,6 +746,19 @@ class PersistenceTracker:
             # ── CLIP semantic gate (v6): reject fixed infrastructure ─────────
             if clip_gate and clip_is_infrastructure(frame_bgr, (x1,y1,x2,y2)):
                 continue
+
+            # ── v7/v8 experimental motion filters (env-toggled) ──────────────
+            _bgsrc = clean_ref if clean_ref is not None else bg_long
+            if _bgsrc is not None and (os.environ.get('PSCDL_IOU_FILTER') or os.environ.get('PSCDL_FLOW_FILTER')):
+                _bg_gray = cv2.cvtColor(_bgsrc.astype(np.uint8), cv2.COLOR_BGR2GRAY)
+                if os.environ.get('PSCDL_IOU_FILTER'):
+                    if temporal_change_iou(video_path, _bg_gray, (x1,y1,x2,y2), t, P_sec) \
+                       < float(os.environ.get('PSCDL_IOU_THR', '0.42')):
+                        continue
+                if os.environ.get('PSCDL_FLOW_FILTER'):
+                    if foreground_flow(video_path, _bg_gray, (x1,y1,x2,y2), t) \
+                       > float(os.environ.get('PSCDL_FLOW_THR', '2.0')):
+                        continue
 
             text = self._guess_text((x1,y1,x2,y2), H, W)
             mask = sam3_segment(proc, frame_bgr, (x1,y1,x2,y2), hit_region, text)
@@ -860,7 +922,8 @@ def run_pipeline(meta: VideoMeta, proc, yolo_model, siamese_model,
                                                    eff_fps=eff,
                                                    P_sec=meta.P, bg_window_sec=15.0,
                                                    bg_long=pfsm.bg_long, clean_ref=clean_ref,
-                                                   clip_gate=('model' in _CLIP))
+                                                   clip_gate=('model' in _CLIP),
+                                                   video_path=str(meta.video_path))
 
             # Absorb finished objects into background
             for obj in newly_absorbed:

@@ -175,7 +175,7 @@ def generate_mask(p: int = 60, c: int = 90,
                 pfsm_hit=pfsm.hit, P_fr=P_fr, recency_sec=15.0,
                 eff_fps=eff_fps, P_sec=p, bg_window_sec=15.0,
                 bg_long=pfsm.bg_long, clean_ref=clean_ref,
-                clip_gate=bool(_models.get('clip')))
+                clip_gate=bool(_models.get('clip')), video_path=video_path)
 
             for obj in newly_absorbed:
                 if obj.mask is not None:

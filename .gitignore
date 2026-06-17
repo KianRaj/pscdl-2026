@@ -36,3 +36,4 @@ run_log.txt
 # Temp
 tmp/
 *.tmp
+private_backup/

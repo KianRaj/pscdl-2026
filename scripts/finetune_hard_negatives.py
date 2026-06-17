@@ -47,9 +47,11 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
-ROOT = Path("/media/nas_mount/research3/aman_kr/vehant")
+ROOT = Path(os.environ.get("PSCDL_BASE_DIR", Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, "/media/nas_mount/research3/aman_kr/midas/sam3")
+_sam3 = os.environ.get("SAM3_REPO", "")        # set only for a local SAM3 clone
+if _sam3:
+    sys.path.insert(0, _sam3)
 
 import run_pipeline as rp   # SiameseChangeNet, IMG_SIZE, NORM, DEVICE, build_background, ChangeDataset
 
@@ -132,21 +134,24 @@ def main():
     neg_ds = HardNegDataset(neg_items)
     datasets = [neg_ds]
 
-    # Anti-forgetting: mix in original positives if the dataset loader is available.
+    # Anti-forgetting: mix in original positive pairs (VL-CMU-CD + PSCD).
     try:
-        pos_ds = rp.ChangeDataset(split="train")             # adjust to actual API if needed
-        idxs = random.sample(range(len(pos_ds)), min(args.pos_sample, len(pos_ds)))
-        datasets.append(torch.utils.data.Subset(pos_ds, idxs))
+        vlcmu = rp.ChangePairDataset(rp.VLCMU_DIR/'train/t0', rp.VLCMU_DIR/'train/t1',
+                                     rp.VLCMU_DIR/'train/mask')
+        pscd  = rp.ChangePairDataset(rp.PSCD_DIR/'t0', rp.PSCD_DIR/'t1', rp.PSCD_DIR/'mask')
+        pos_all = torch.utils.data.ConcatDataset([vlcmu, pscd])
+        idxs = random.sample(range(len(pos_all)), min(args.pos_sample, len(pos_all)))
+        datasets.append(torch.utils.data.Subset(pos_all, idxs))
         print(f"Mixed in {len(idxs)} original positive pairs (anti-forgetting).")
     except Exception as e:
-        print(f"[warn] could not load original positives ({e}); training on hard negatives only. "
-              f"Use a very low LR / few epochs to avoid forgetting.")
+        print(f"[FATAL] could not load original positives ({e}). Aborting — training on "
+              f"hard negatives ONLY would make the model forget real objects.")
+        sys.exit(1)
 
     train_ds = torch.utils.data.ConcatDataset(datasets)
     dl = DataLoader(train_ds, batch_size=8, shuffle=True, num_workers=2)
 
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
-    bce = torch.nn.BCEWithLogitsLoss()
     model.train()
     for ep in range(args.epochs):
         tot = 0.0
@@ -155,7 +160,7 @@ def main():
             logits = model(t0, t1)
             if logits.shape[-2:] != mk.shape[-2:]:
                 logits = F.interpolate(logits, size=mk.shape[-2:], mode="bilinear", align_corners=False)
-            loss = bce(logits, mk)
+            loss = rp.change_loss(logits, mk)        # same loss used in training
             opt.zero_grad(); loss.backward(); opt.step()
             tot += float(loss)
         print(f"  epoch {ep+1}/{args.epochs}  loss={tot/max(len(dl),1):.4f}")

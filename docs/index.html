@@ -56,10 +56,27 @@
   <!-- ── Demo ───────────────────────────────────────────────────────────── -->
   <section id="demo" class="container content">
     <h2>How a mask behaves</h2>
+    <p>Full videos sped up to 30 seconds. The red overlay is the per-second mask — it switches on <strong>only</strong> inside the persistence window <code>[t₀+p, t₀+c]</code> and off again once the object is absorbed into the background.</p>
+
+    <h3>Train — sample set (ground truth)</h3>
     <figure class="arch-figure">
-      <img src="assets/mask_demo.gif" alt="Animated schematic: an object appears, is counted for p seconds, then a white per-second mask switches on for the persistence window and switches off after the cooldown." />
-      <figcaption>Schematic of the per-second mask lifecycle: blank during the baseline, <strong>white only inside</strong> <code>[t₀+p, t₀+c]</code>, blank again after the object is absorbed into the background. (Illustration — not challenge data.)</figcaption>
+      <video src="assets/demo/train_demo.mp4" autoplay muted loop playsinline controls preload="metadata" style="width:100%;border-radius:8px;"></video>
+      <figcaption><code>video_1</code> — two trolley bags. Each is masked only during its own 30-second active window, then drops out as it becomes part of the background.</figcaption>
     </figure>
+
+    <h3>Test — final set (our prediction)</h3>
+    <figure class="arch-figure">
+      <video src="assets/demo/test_demo.mp4" autoplay muted loop playsinline controls preload="metadata" style="width:100%;border-radius:8px;"></video>
+      <figcaption><code>test_4</code> — debris pile flagged as a persistent change by the v6 pipeline (CLIP semantic gate enabled).</figcaption>
+    </figure>
+
+    <details style="margin-top:1rem;">
+      <summary style="cursor:pointer;">Schematic version</summary>
+      <figure class="arch-figure">
+        <img src="assets/mask_demo.gif" alt="Schematic of the per-second mask lifecycle." />
+        <figcaption>Idealised mask lifecycle (illustration — not challenge data).</figcaption>
+      </figure>
+    </details>
   </section>
 
   <!-- ── Architecture ───────────────────────────────────────────────────── -->

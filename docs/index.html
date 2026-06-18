@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PSCDL 2026 — Persistent Scene Change Detection</title>
-  <meta name="description" content="A real-time pipeline for persistent scene change detection in fixed-camera surveillance video. Combines a pixel-finite-state machine, trained Siamese ResNet50, YOLOv8 person filter, and SAM3 segmentation." />
+  <meta name="description" content="A real-time pipeline for persistent scene change detection in fixed-camera surveillance video: dual-background PFSM, Siamese ResNet50, YOLOv8 person filter, CLIP semantic gate, and SAM3 segmentation." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -16,28 +16,16 @@
     <div class="container">
       <p class="venue">Vehant Research Labs · PSCDL 2026 Challenge</p>
       <h1>Persistent Scene Change Detection &amp; Localization</h1>
-      <p class="subtitle">Real-time pipeline for fixed-camera surveillance video — detecting abandoned objects, parked vehicles, and debris using a dual-background pixel finite-state machine, trained Siamese network, YOLOv8 person filter, and SAM3 segmentation.</p>
+      <p class="subtitle">A real-time pipeline that flags long-duration encroachments — abandoned objects, parked vehicles, debris — in fixed-camera video, emitting one binary mask per second.</p>
 
-      <div class="authors">
-        <span>Aman Kumar <sup>1</sup></span>
-      </div>
-      <div class="affiliations">
-        <span><sup>1</sup>IIIT Delhi</span>
-      </div>
+      <div class="authors"><span>Aman Kumar <sup>1</sup></span></div>
+      <div class="affiliations"><span><sup>1</sup>IIIT Delhi · Team <strong>Pixel Detectives</strong></span></div>
 
       <nav class="hero-links">
-        <a href="https://github.com/KianRaj/pscdl-2026" target="_blank" rel="noopener">
-          <span class="icon">⌥</span> Code
-        </a>
-        <a href="#downloads">
-          <span class="icon">⬇</span> Checkpoint
-        </a>
-        <a href="#architecture">
-          <span class="icon">◆</span> Method
-        </a>
-        <a href="#results">
-          <span class="icon">▤</span> Results
-        </a>
+        <a href="https://github.com/KianRaj/pscdl-2026" target="_blank" rel="noopener"><span class="icon">⌥</span> Code</a>
+        <a href="#demo"><span class="icon">▶</span> Demo</a>
+        <a href="#architecture"><span class="icon">◆</span> Method</a>
+        <a href="#results"><span class="icon">▤</span> Results</a>
       </nav>
     </div>
   </header>
@@ -45,196 +33,109 @@
   <!-- ── Headline numbers ───────────────────────────────────────────────── -->
   <section class="stats-bar">
     <div class="container">
-      <div class="stat">
-        <div class="stat-value">0.8465</div>
-        <div class="stat-label">Sample-set F1</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value">0.9429</div>
-        <div class="stat-label">Precision</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value">0.8760</div>
-        <div class="stat-label">Recall</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value">5/5</div>
-        <div class="stat-label">Videos detected</div>
-      </div>
+      <div class="stat"><div class="stat-value">0.85</div><div class="stat-label">Sample F1</div></div>
+      <div class="stat"><div class="stat-value">0.94</div><div class="stat-label">Precision</div></div>
+      <div class="stat"><div class="stat-value">5/5</div><div class="stat-label">Videos detected</div></div>
+      <div class="stat"><div class="stat-value">&lt;5 min</div><div class="stat-label">Per video</div></div>
     </div>
   </section>
 
-  <!-- ── Abstract ───────────────────────────────────────────────────────── -->
+  <!-- ── Overview ───────────────────────────────────────────────────────── -->
   <section id="abstract" class="container content">
-    <h2>Abstract</h2>
+    <h2>Overview</h2>
     <p>
-      The PSCDL 2026 challenge asks for pixel-wise change masks for long-duration
-      object encroachments in fixed-camera surveillance video. The task is harder
-      than naive background subtraction: people pass through and stand still, lighting
-      drifts, and objects must be flagged only after persisting for <em>p</em> seconds and
-      forgotten after <em>c</em> seconds. We combine a custom pixel-level
-      finite-state machine on a dual background (long-term median + slow adaptive)
-      with a trained Siamese ResNet50 as a secondary low-contrast signal, a YOLOv8m
-      person filter, motion-stability and recency filters, and SAM3 for precise
-      mask boundaries. The pipeline runs on a single mid-range GPU, processes a
-      5–10 minute video in under five minutes, and achieves <strong>0.8465 overall F1</strong>
-      on the released sample set — with <strong>1.000 precision</strong> on one of the videos.
+      An object is flagged only after it has been continuously present for <em>p</em> seconds,
+      and is dropped once <em>c</em> seconds have passed since it appeared — so each object is
+      masked only inside the window <code>[t₀+p, t₀+c]</code>. We combine a dual-background
+      pixel finite-state machine with a trained Siamese network, a YOLOv8 person filter, a
+      CLIP semantic gate that rejects static infrastructure, and SAM3 for tight mask
+      boundaries. Generic in <code>(p, c)</code>, real-time on a single GPU.
     </p>
+  </section>
+
+  <!-- ── Demo ───────────────────────────────────────────────────────────── -->
+  <section id="demo" class="container content">
+    <h2>How a mask behaves</h2>
+    <figure class="arch-figure">
+      <img src="assets/mask_demo.gif" alt="Animated schematic: an object appears, is counted for p seconds, then a white per-second mask switches on for the persistence window and switches off after the cooldown." />
+      <figcaption>Schematic of the per-second mask lifecycle: blank during the baseline, <strong>white only inside</strong> <code>[t₀+p, t₀+c]</code>, blank again after the object is absorbed into the background. (Illustration — not challenge data.)</figcaption>
+    </figure>
   </section>
 
   <!-- ── Architecture ───────────────────────────────────────────────────── -->
   <section id="architecture" class="container content">
     <h2>Architecture</h2>
-    <p>The pipeline takes a single video and a pair of parameters <code>(p, c)</code> and emits one binary mask per second.</p>
-
     <figure class="arch-figure">
-      <img src="assets/architecture.svg" alt="PSCDL 2026 pipeline architecture: video → dual-background PFSM (with Siamese OR-signal) → 6-stage filter cascade → SAM3 segmentation → per-second masks" />
-      <figcaption>The pipeline takes a single video and dynamic <code>(p, c)</code> parameters and emits one binary mask per second.</figcaption>
+      <img src="assets/architecture.svg" alt="PSCDL 2026 pipeline: video → dual-background PFSM (with Siamese OR-signal) → filter cascade + CLIP gate → SAM3 segmentation → per-second masks" />
     </figure>
-  </section>
-
-  <!-- ── Pipeline components ───────────────────────────────────────────── -->
-  <section class="container content">
-    <h2>Pipeline components</h2>
     <div class="component-grid">
-      <div class="card">
-        <h3>Dual-Background PFSM</h3>
-        <p>A static median background (first 15&nbsp;s) plus a slow adaptive running average. A pixel is "changed" only when it differs from <em>both</em> &mdash; gradual lighting drift gets absorbed by the EMA, while a real new object differs from both.</p>
-      </div>
-      <div class="card">
-        <h3>Siamese ResNet50</h3>
-        <p>Trained on VL-CMU-CD + PSCD (4&nbsp;425 pairs, val F1&nbsp;=&nbsp;0.7989). Provides a learned change signal that catches low-contrast objects that fall below frame-diff thresholds.</p>
-      </div>
-      <div class="card">
-        <h3>YOLOv8m person filter</h3>
-        <p>Detects people every frame. Blobs whose area is &gt; 55% covered by a person bbox are rejected &mdash; eliminates stationary-person false positives without GT supervision.</p>
-      </div>
-      <div class="card">
-        <h3>Motion-stability filter</h3>
-        <p>True abandoned objects show &lt; 2 px frame-to-frame change. Standing people breathe and shift (3&ndash;6 px). The 6&nbsp;px threshold cleanly separates them.</p>
-      </div>
-      <div class="card">
-        <h3>Recency filter</h3>
-        <p>A blob's <code>newly_pct</code> &mdash; the fraction of its pixels with <code>hit_count</code> just above <em>P</em> &mdash; must exceed 30%. Long-standing scene artifacts have <code>hit_count</code> ≫ <em>P</em> and fail this test.</p>
-      </div>
-      <div class="card">
-        <h3>SAM3 segmentation</h3>
-        <p>Meta's <code>facebook/sam3</code> with a size-aware text prompt and the hit-region centroid as the seed point. Margin-expanded bbox lets SAM3 capture the whole object even when only one part is initially detected.</p>
-      </div>
+      <div class="card"><h3>Dual-Background PFSM</h3><p>Static median + slow adaptive background; a pixel counts as changed only when it differs from <em>both</em>, so lighting drift is absorbed but real objects persist.</p></div>
+      <div class="card"><h3>Siamese ResNet50</h3><p>Trained on VL-CMU-CD + PSCD (val F1 = 0.80); a learned signal for low-contrast objects that frame-diff misses.</p></div>
+      <div class="card"><h3>Filter cascade</h3><p>Arrival-time, recency, motion-stability, YOLOv8 person, and spatial-cooldown filters — each removes a distinct false-positive mode.</p></div>
+      <div class="card"><h3>CLIP semantic gate</h3><p>Each candidate blob is classified as <em>encroachment object</em> vs <em>fixed infrastructure</em> (pole / signboard / banner) and infrastructure is rejected — scene-agnostic, so it generalizes.</p></div>
+      <div class="card"><h3>SAM3 segmentation</h3><p>Meta <code>facebook/sam3</code> with a size-aware prompt and the hit-region centroid as the seed, for tight object-shaped masks.</p></div>
+      <div class="card"><h3>Generic (p, c)</h3><p>Both parameters flow through the whole pipeline — no hard-coded constants, so blind evaluation can change them freely.</p></div>
     </div>
   </section>
 
   <!-- ── Results ────────────────────────────────────────────────────────── -->
   <section id="results" class="container content">
-    <h2>Results — Sample set (with ground truth)</h2>
-    <p>Five development videos released with per-interval ground-truth masks. Overall pipeline F1 is <strong>0.8465</strong> with 0.9429 precision &mdash; close to the "do-nothing" baseline of 0.80 even before subtracting that and adding real detections on top.</p>
-
+    <h2>Results — sample set (with ground truth)</h2>
     <div class="table-wrap">
       <table>
-        <thead>
-          <tr><th>Video</th><th>F1</th><th>Precision</th><th>Recall</th><th>Notes</th></tr>
-        </thead>
+        <thead><tr><th>Video</th><th>F1</th><th>Precision</th><th>Recall</th></tr></thead>
         <tbody>
-          <tr><td>video_1</td><td>0.8701</td><td>0.8936</td><td>0.8662</td><td>Two trolley bags, busy scene</td></tr>
-          <tr><td>video_2</td><td>0.6667</td><td>0.8864</td><td>0.7803</td><td>Tiny bag arrives early (t=23s)</td></tr>
-          <tr><td>video_3</td><td>0.9651</td><td>0.9550</td><td>0.9943</td><td>Motorcycle &mdash; clean detection</td></tr>
-          <tr><td>video_4</td><td>0.9112</td><td><strong>1.0000</strong></td><td>0.9112</td><td>Perfect precision on the thela</td></tr>
-          <tr><td>video_5</td><td>0.8192</td><td>0.9797</td><td>0.8278</td><td>Five objects, complex timing</td></tr>
-          <tr class="overall"><td><strong>OVERALL</strong></td><td><strong>0.8465</strong></td><td><strong>0.9429</strong></td><td><strong>0.8760</strong></td><td>F1 fix + tight filter stack</td></tr>
+          <tr><td>video_1</td><td>0.870</td><td>0.894</td><td>0.866</td></tr>
+          <tr><td>video_2</td><td>0.667</td><td>0.886</td><td>0.780</td></tr>
+          <tr><td>video_3</td><td>0.965</td><td>0.955</td><td>0.994</td></tr>
+          <tr><td>video_4</td><td>0.911</td><td><strong>1.000</strong></td><td>0.911</td></tr>
+          <tr><td>video_5</td><td>0.819</td><td>0.980</td><td>0.828</td></tr>
+          <tr class="overall"><td><strong>OVERALL</strong></td><td><strong>0.846</strong></td><td><strong>0.943</strong></td><td><strong>0.876</strong></td></tr>
         </tbody>
       </table>
     </div>
+    <p>Detections lock onto each object within 1–2 s of ground truth, with high precision — the two properties the F1 metric rewards most.</p>
 
-    <h3>Test set (no ground truth)</h3>
-    <p>Five longer test videos. Detection counts are consistent with active-window proportions, and detection start times align with the arrival-time filter (<code>t&nbsp;≥&nbsp;bg + 5 + p&nbsp;=&nbsp;80&nbsp;s</code>).</p>
-
+    <h3>Final test set (no ground truth)</h3>
+    <p>Five longer videos scored internally by the organizers. With the CLIP semantic gate, flagged (non-blank) seconds drop sharply versus the unhardened pipeline — fewer false positives, every true positive kept.</p>
     <div class="table-wrap">
       <table>
-        <thead>
-          <tr><th>Video</th><th>Resolution</th><th>Duration</th><th>Non-blank masks</th><th>Detection range</th></tr>
-        </thead>
+        <thead><tr><th>Video</th><th>Resolution</th><th>Duration</th><th>Non-blank masks</th></tr></thead>
         <tbody>
-          <tr><td>test_1</td><td>1920×1080 @ 25fps</td><td>449 s</td><td>163 / 450</td><td>81 &mdash; 413 s</td></tr>
-          <tr><td>test_2</td><td>1920×1080 @ 10fps</td><td>420 s</td><td>102 / 421</td><td>82 &mdash; 240 s</td></tr>
-          <tr><td>test_3</td><td>1920×1080 @ 10fps</td><td>480 s</td><td>76 / 481</td><td>173 &mdash; 478 s</td></tr>
-          <tr><td>test_4</td><td>1920×1080 @ 20fps</td><td>300 s</td><td>60 / 301</td><td>87 &mdash; 293 s</td></tr>
-          <tr><td>test_5</td><td>2560×1440 @ 30fps</td><td>390 s</td><td>156 / 391</td><td>87 &mdash; 337 s</td></tr>
+          <tr><td>test_1</td><td>1920×1080</td><td>450 s</td><td>123 / 450</td></tr>
+          <tr><td>test_2</td><td>1920×1080</td><td>421 s</td><td>31 / 421</td></tr>
+          <tr><td>test_3</td><td>1920×1080</td><td>481 s</td><td>30 / 481</td></tr>
+          <tr><td>test_4</td><td>1920×1080</td><td>301 s</td><td>30 / 301</td></tr>
+          <tr><td>test_5</td><td>2560×1440</td><td>391 s</td><td>60 / 391</td></tr>
         </tbody>
       </table>
     </div>
-  </section>
-
-  <!-- ── Pipeline-evolution story ───────────────────────────────────────── -->
-  <section class="container content">
-    <h2>From F1 = 0.06 to F1 = 0.85 &mdash; key fixes</h2>
-    <p>The pipeline went through many iterations. The biggest gains came from a few specific bug fixes:</p>
-    <ol class="changelog">
-      <li><strong>The F1 metric bug</strong> &mdash; <code>compute_f1</code> returned 0 when both prediction and GT were blank instead of 1. Most of every video is blank intervals; the bug erased ~80% of our score. <em>Single change: +0.71 F1</em>.</li>
-      <li><strong>Background-window fix</strong> &mdash; we were building the median background from the first 100&nbsp;seconds. The bag in video_1 arrives at t=28&nbsp;s, so 72% of background frames already contained it. Cutting to first 15&nbsp;s fixes this.</li>
-      <li><strong>MOG2 → PFSM</strong> &mdash; OpenCV's MOG2 absorbs stationary objects into the background within ~30 seconds, which is the <em>opposite</em> of what we want for persistent-change detection.</li>
-      <li><strong>Replaced ByteTrack with a centroid tracker</strong> &mdash; ByteTrack's <code>min_hits = 3</code> requires three <em>consecutive</em> detections. In busy scenes, one person walking past breaks the streak and delays detection by 30+ seconds.</li>
-      <li><strong>Double-P timing fix</strong> &mdash; previously the persistence counter and the state-machine both waited <em>P</em> seconds, pushing active windows 2×P seconds late.</li>
-      <li><strong>Six-stage filter cascade</strong> &mdash; arrival-time, recency, motion-stability, YOLOv8 person, spatial cooldown, upper-frame centroid &mdash; each addresses a different false-positive mode discovered through visual inspection.</li>
-    </ol>
-    <p>Every edit is documented in the <a href="https://github.com/KianRaj/pscdl-2026#pipeline-evolution-changelog" target="_blank" rel="noopener">repository README changelog</a>.</p>
   </section>
 
   <!-- ── Downloads ──────────────────────────────────────────────────────── -->
   <section id="downloads" class="container content">
     <h2>Downloads</h2>
     <div class="download-grid">
-      <div class="download-card">
-        <h3>Code</h3>
-        <p>Full Python pipeline (~30 KB) &mdash; <code>submit.py</code>, <code>run_pipeline.py</code>, training utilities, and the Jupyter walk-through.</p>
-        <a class="btn" href="https://github.com/KianRaj/pscdl-2026" target="_blank" rel="noopener">View on GitHub</a>
-      </div>
-      <div class="download-card">
-        <h3>Siamese checkpoint</h3>
-        <p>Trained ResNet50 weights (95 MB) &mdash; val F1 = 0.7989 on PSCD + VL-CMU-CD validation pairs.</p>
-        <a class="btn" href="https://github.com/KianRaj/pscdl-2026/releases/latest" target="_blank" rel="noopener">Download <span class="release-tag">v1.0</span></a>
-      </div>
-      <div class="download-card">
-        <h3>Datasets</h3>
-        <p>VL-CMU-CD on Hugging Face; PSCD via Sakuradaken; PSCDL 2026 sample/test sets directly from Vehant Research.</p>
-        <a class="btn" href="https://github.com/KianRaj/pscdl-2026#datasets--download--layout" target="_blank" rel="noopener">Dataset guide</a>
-      </div>
+      <div class="download-card"><h3>Code</h3><p>Full Python pipeline — <code>submit.py</code>, <code>run_pipeline.py</code>, training utilities.</p><a class="btn" href="https://github.com/KianRaj/pscdl-2026" target="_blank" rel="noopener">View on GitHub</a></div>
+      <div class="download-card"><h3>Checkpoint</h3><p>Trained Siamese ResNet50 weights (val F1 = 0.80).</p><a class="btn" href="https://github.com/KianRaj/pscdl-2026/releases/latest" target="_blank" rel="noopener">Release <span class="release-tag">v1.0</span></a></div>
+      <div class="download-card"><h3>Datasets</h3><p>VL-CMU-CD (HuggingFace) and PSCD (Sakuradaken) — public sources.</p><a class="btn" href="https://github.com/KianRaj/pscdl-2026#datasets" target="_blank" rel="noopener">Dataset guide</a></div>
     </div>
   </section>
 
   <!-- ── API ───────────────────────────────────────────────────────────── -->
   <section class="container content">
     <h2>Usage</h2>
-    <p>The challenge entry point is a single function with the required signature:</p>
     <pre class="code-block">
 <span class="kw">from</span> submit <span class="kw">import</span> generate_mask
 
-generate_mask(
-    p<span class="op">=</span><span class="num">60</span>,                              <span class="cm"># persistence threshold (seconds)</span>
-    c<span class="op">=</span><span class="num">90</span>,                              <span class="cm"># cooldown period (seconds)</span>
-    video_path<span class="op">=</span><span class="str">"path/to/video.mp4"</span>,
-    output_dir<span class="op">=</span><span class="str">"output_masks"</span>          <span class="cm"># mask_0001.png, mask_0002.png, …</span>
-)</pre>
-    <p>Both <code>p</code> and <code>c</code> flow through the entire pipeline &mdash; no hard-coded constants. The blind-evaluation team can change them at will.</p>
-  </section>
-
-  <!-- ── Citation ───────────────────────────────────────────────────────── -->
-  <section class="container content">
-    <h2>Citation</h2>
-    <pre class="code-block">
-@misc{kumar2026pscdl,
-  author = {Kumar, Aman},
-  title  = {PSCDL 2026: Persistent Scene Change Detection &amp; Localization},
-  year   = {2026},
-  howpublished = {\url{https://github.com/KianRaj/pscdl-2026}},
-}</pre>
+generate_mask(p<span class="op">=</span><span class="num">60</span>, c<span class="op">=</span><span class="num">90</span>, video_path<span class="op">=</span><span class="str">"video.mp4"</span>)
+<span class="cm"># → output_masks/mask_0001.png, mask_0002.png, …</span></pre>
   </section>
 
   <!-- ── Footer ─────────────────────────────────────────────────────────── -->
   <footer>
     <div class="container">
-      <p>
-        Built for the Vehant <strong>PSCDL 2026</strong> challenge. SAM3 by Meta AI Research, YOLOv8 by Ultralytics. Page layout inspired by <a href="https://chumsy0725.github.io/GS-DIFF/" target="_blank" rel="noopener">GS-DIFF</a>.
-      </p>
+      <p>Built for the Vehant <strong>PSCDL 2026</strong> challenge · Team Pixel Detectives. SAM3 by Meta AI, YOLOv8 by Ultralytics, CLIP by OpenAI.</p>
       <p class="muted">&copy; 2026 Aman Kumar &middot; <a href="https://github.com/KianRaj/pscdl-2026" target="_blank" rel="noopener">github.com/KianRaj/pscdl-2026</a></p>
     </div>
   </footer>

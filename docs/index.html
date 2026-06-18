@@ -56,17 +56,30 @@
   <!-- ── Demo ───────────────────────────────────────────────────────────── -->
   <section id="demo" class="container content">
     <h2>How a mask behaves</h2>
-    <p>The binary <strong>per-second mask</strong> (left) is white only inside the persistence window <code>[t₀+p, t₀+c]</code> and black once the object is absorbed into the background.</p>
+    <p>The binary <strong>per-second mask</strong> (left) is white only inside the persistence window <code>[t₀+p, t₀+c]</code> and black once the object is absorbed into the background. <span class="muted">— scroll →</span></p>
 
-    <figure class="arch-figure">
-      <video src="assets/demo/train_demo.mp4" autoplay muted loop playsinline controls preload="metadata" style="width:100%;border-radius:8px;"></video>
-      <figcaption><code>video_1</code> — two trolley bags (ground-truth mask); each is masked only during its own active window.</figcaption>
-    </figure>
+    <style>
+      .demo-row{display:flex;gap:1.2rem;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 2px 18px;-webkit-overflow-scrolling:touch;}
+      .demo-row figure{flex:0 0 90%;margin:0;scroll-snap-align:center;}
+      @media(min-width:900px){.demo-row figure{flex:0 0 60%;}}
+      .demo-row video{width:100%;border-radius:8px;display:block;}
+      .demo-row figcaption{margin-top:.5rem;}
+      .demo-row::-webkit-scrollbar{height:13px;}
+      .demo-row::-webkit-scrollbar-track{background-image:radial-gradient(circle,rgba(150,152,162,.6) 1.7px,transparent 2px);background-size:11px 11px;background-position:center;border-radius:8px;}
+      .demo-row::-webkit-scrollbar-thumb{background:#8b1e1e;border-radius:8px;border:3px solid transparent;background-clip:padding-box;}
+      .demo-row{scrollbar-color:#8b1e1e transparent;scrollbar-width:thin;}
+    </style>
 
-    <figure class="arch-figure">
-      <video src="assets/demo/test_demo.mp4" autoplay muted loop playsinline controls preload="metadata" style="width:100%;border-radius:8px;"></video>
-      <figcaption><code>test_4</code> — roadside debris (predicted mask).</figcaption>
-    </figure>
+    <div class="demo-row">
+      <figure>
+        <video src="assets/demo/train_demo.mp4" autoplay muted loop playsinline controls preload="metadata"></video>
+        <figcaption><code>video_1</code> — two trolley bags (ground-truth mask).</figcaption>
+      </figure>
+      <figure>
+        <video src="assets/demo/test_demo.mp4" autoplay muted loop playsinline controls preload="metadata"></video>
+        <figcaption><code>test_4</code> — roadside debris (predicted mask).</figcaption>
+      </figure>
+    </div>
   </section>
 
   <!-- ── Architecture ───────────────────────────────────────────────────── -->

@@ -70,7 +70,7 @@
       .demo-row{scrollbar-color:#8b1e1e transparent;scrollbar-width:thin;}
     </style>
 
-    <div class="demo-row">
+    <div class="demo-row dotscroll">
       <figure>
         <video src="assets/demo/train_demo.mp4" autoplay muted loop playsinline controls preload="metadata"></video>
       </figure>
@@ -78,6 +78,7 @@
         <video src="assets/demo/test_demo.mp4" autoplay muted loop playsinline controls preload="metadata"></video>
       </figure>
     </div>
+    <div class="dots"></div>
   </section>
 
   <!-- ── Architecture ───────────────────────────────────────────────────── -->
@@ -95,7 +96,7 @@
       .card-scroll{scrollbar-color:#8b1e1e transparent;scrollbar-width:thin;}
     </style>
     <p class="muted" style="margin-bottom:.4rem;">— scroll →</p>
-    <div class="card-scroll">
+    <div class="card-scroll dotscroll">
       <div class="card"><h3>Dual-Background PFSM</h3><p>Static median + slow adaptive background; a pixel counts as changed only when it differs from <em>both</em>, so lighting drift is absorbed but real objects persist.</p></div>
       <div class="card"><h3>Siamese ResNet50</h3><p>Trained on VL-CMU-CD + PSCD (val F1 = 0.80); a learned signal for low-contrast objects that frame-diff misses.</p></div>
       <div class="card"><h3>Filter cascade</h3><p>Arrival-time, recency, motion-stability, YOLOv8 person, and spatial-cooldown filters — each removes a distinct false-positive mode.</p></div>
@@ -103,6 +104,7 @@
       <div class="card"><h3>SAM3 segmentation</h3><p>Meta <code>facebook/sam3</code> with a size-aware prompt and the hit-region centroid as the seed, for tight object-shaped masks.</p></div>
       <div class="card"><h3>Generic (p, c)</h3><p>Both parameters flow through the whole pipeline — no hard-coded constants, so blind evaluation can change them freely.</p></div>
     </div>
+    <div class="dots"></div>
   </section>
 
   <!-- ── Results ────────────────────────────────────────────────────────── -->
@@ -167,6 +169,37 @@ generate_mask(p<span class="op">=</span><span class="num">60</span>, c<span clas
     </div>
   </footer>
 
+  <style>
+    .dots{display:flex;gap:9px;justify-content:center;margin:2px 0 6px;}
+    .dots .dot{width:9px;height:9px;border-radius:50%;border:none;padding:0;cursor:pointer;background:rgba(150,152,162,.45);transition:transform .15s,background .15s;}
+    .dots .dot:hover{background:rgba(150,152,162,.85);}
+    .dots .dot.active{background:#8b1e1e;transform:scale(1.35);}
+  </style>
+  <script>
+    document.querySelectorAll('.dotscroll').forEach(function(row){
+      var dotsEl = row.nextElementSibling;
+      if(!dotsEl || !dotsEl.classList.contains('dots')) return;
+      function build(){
+        var pages = Math.max(1, Math.round(row.scrollWidth / Math.max(1,row.clientWidth)));
+        dotsEl.innerHTML = '';
+        for(var i=0;i<pages;i++){ (function(i){
+          var d = document.createElement('button');
+          d.className = 'dot'; d.setAttribute('aria-label','Page '+(i+1));
+          d.addEventListener('click', function(){ row.scrollTo({left:i*row.clientWidth, behavior:'smooth'}); });
+          dotsEl.appendChild(d);
+        })(i); }
+        update();
+      }
+      function update(){
+        var idx = Math.round(row.scrollLeft / Math.max(1,row.clientWidth));
+        dotsEl.querySelectorAll('.dot').forEach(function(d,i){ d.classList.toggle('active', i===idx); });
+      }
+      var raf;
+      row.addEventListener('scroll', function(){ cancelAnimationFrame(raf); raf = requestAnimationFrame(update); });
+      window.addEventListener('resize', build);
+      build();
+    });
+  </script>
   <script src="js/main.js" defer></script>
 </body>
 </html>

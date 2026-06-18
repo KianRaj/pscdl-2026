@@ -56,27 +56,17 @@
   <!-- ── Demo ───────────────────────────────────────────────────────────── -->
   <section id="demo" class="container content">
     <h2>How a mask behaves</h2>
-    <p>Full videos sped up to 30 seconds. The red overlay is the per-second mask — it switches on <strong>only</strong> inside the persistence window <code>[t₀+p, t₀+c]</code> and off again once the object is absorbed into the background.</p>
+    <p>The binary <strong>per-second mask</strong> (left) is white only inside the persistence window <code>[t₀+p, t₀+c]</code> and black once the object is absorbed into the background.</p>
 
-    <h3>Train — sample set (ground truth)</h3>
     <figure class="arch-figure">
       <video src="assets/demo/train_demo.mp4" autoplay muted loop playsinline controls preload="metadata" style="width:100%;border-radius:8px;"></video>
-      <figcaption><code>video_1</code> — two trolley bags. Each is masked only during its own 30-second active window, then drops out as it becomes part of the background.</figcaption>
+      <figcaption><code>video_1</code> — two trolley bags (ground-truth mask); each is masked only during its own active window.</figcaption>
     </figure>
 
-    <h3>Test — final set (our prediction)</h3>
     <figure class="arch-figure">
       <video src="assets/demo/test_demo.mp4" autoplay muted loop playsinline controls preload="metadata" style="width:100%;border-radius:8px;"></video>
-      <figcaption><code>test_4</code> — debris pile flagged as a persistent change by the v6 pipeline (CLIP semantic gate enabled).</figcaption>
+      <figcaption><code>test_4</code> — roadside debris (predicted mask).</figcaption>
     </figure>
-
-    <details style="margin-top:1rem;">
-      <summary style="cursor:pointer;">Schematic version</summary>
-      <figure class="arch-figure">
-        <img src="assets/mask_demo.gif" alt="Schematic of the per-second mask lifecycle." />
-        <figcaption>Idealised mask lifecycle (illustration — not challenge data).</figcaption>
-      </figure>
-    </details>
   </section>
 
   <!-- ── Architecture ───────────────────────────────────────────────────── -->

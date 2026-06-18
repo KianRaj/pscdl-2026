@@ -86,7 +86,16 @@
     <figure class="arch-figure">
       <img src="assets/architecture.svg" alt="PSCDL 2026 pipeline: video → dual-background PFSM (with Siamese OR-signal) → filter cascade + CLIP gate → SAM3 segmentation → per-second masks" />
     </figure>
-    <div class="component-grid">
+    <style>
+      .card-scroll{display:flex;gap:1rem;overflow-x:auto;scroll-snap-type:x proximity;padding:4px 2px 18px;-webkit-overflow-scrolling:touch;}
+      .card-scroll .card{flex:0 0 300px;scroll-snap-align:start;}
+      .card-scroll::-webkit-scrollbar{height:13px;}
+      .card-scroll::-webkit-scrollbar-track{background-image:radial-gradient(circle,rgba(150,152,162,.6) 1.7px,transparent 2px);background-size:11px 11px;background-position:center;border-radius:8px;}
+      .card-scroll::-webkit-scrollbar-thumb{background:#8b1e1e;border-radius:8px;border:3px solid transparent;background-clip:padding-box;}
+      .card-scroll{scrollbar-color:#8b1e1e transparent;scrollbar-width:thin;}
+    </style>
+    <p class="muted" style="margin-bottom:.4rem;">— scroll →</p>
+    <div class="card-scroll">
       <div class="card"><h3>Dual-Background PFSM</h3><p>Static median + slow adaptive background; a pixel counts as changed only when it differs from <em>both</em>, so lighting drift is absorbed but real objects persist.</p></div>
       <div class="card"><h3>Siamese ResNet50</h3><p>Trained on VL-CMU-CD + PSCD (val F1 = 0.80); a learned signal for low-contrast objects that frame-diff misses.</p></div>
       <div class="card"><h3>Filter cascade</h3><p>Arrival-time, recency, motion-stability, YOLOv8 person, and spatial-cooldown filters — each removes a distinct false-positive mode.</p></div>

@@ -232,10 +232,13 @@ code, .mono{font-family:var(--font-mono);}
 /* ---------- SLIDE 4 : ARCHITECTURE (paper-style figure, exported PNG) ---------- */
 .pp-figure{
   flex:1; min-height:0; display:flex; align-items:center; justify-content:center;
-  background:#ffffff; border-radius:.5em; padding:1em 1.3em;
-  box-shadow:0 .4em 1.6em rgba(0,0,0,.4);
+  background:#ffffff; border-radius:.5em; padding:.7em 1em;
+  border-top:.35em solid var(--accent);
+  box-shadow:0 .6em 2.2em rgba(0,0,0,.5);
 }
 .pp-figure img{max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; display:block; border-radius:.1em;}
+.s-arch{padding-top:1.3em; padding-bottom:.9em;}
+.s-arch .slide-title{font-size:1.9em; margin-bottom:.1em;}
 
 /* ---------- SLIDE 5 : DUAL BACKGROUND ---------- */
 .duo{display:flex; gap:1.2em; flex:1; min-height:0;}
@@ -405,14 +408,12 @@ ul.plain li b{color:var(--ink); font-weight:600;}
       </section>
 
       <!-- 4 — ARCHITECTURE -->
-      <section class="slide" data-n="4">
+      <section class="slide s-arch" data-n="4">
         <span class="eyebrow">System architecture</span>
         <h1 class="slide-title">Two Signals In, One Loop Closed</h1>
-        <p class="lede" style="max-width:60em;">Pixel-diff and a learned network merge into one persistence counter. What survives the filter stack gets segmented — and what expires blends back into the background it came from.</p>
         <div class="pp-figure">
           <img src="../assets/architecture-diagram.png" alt="PSCDL 2026 pipeline architecture — dual-background persistence counter, 8-stage false-positive reject gate, and closed-loop background absorption">
         </div>
-        <p style="font-family:var(--font-mono); font-size:.68em; color:var(--ink-faint); text-align:center;">p and c flow through every stage as arguments — never hard-coded, since the organisers may vary them at evaluation.</p>
       </section>
 
       <!-- 5 — DUAL BACKGROUND -->

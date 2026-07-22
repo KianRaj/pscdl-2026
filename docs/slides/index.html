@@ -229,34 +229,13 @@ code, .mono{font-family:var(--font-mono);}
 .callout b{display:block; font-size:1em; color:var(--ink); margin-bottom:.25em;}
 .callout span{font-size:.82em; color:var(--ink-dim); line-height:1.4;}
 
-/* ---------- SLIDE 4 : ARCHITECTURE (node-link diagram) ---------- */
-.arch-canvas{position:relative; flex:1; min-height:0;}
-.arch-svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
-.arch-node2{
-  position:absolute; transform:translate(-50%,-50%); width:8.6em; z-index:2;
-  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
-  padding:.55em .7em; text-align:center;
+/* ---------- SLIDE 4 : ARCHITECTURE (paper-style figure, exported PNG) ---------- */
+.pp-figure{
+  flex:1; min-height:0; display:flex; align-items:center; justify-content:center;
+  background:#ffffff; border-radius:.5em; padding:1em 1.3em;
+  box-shadow:0 .4em 1.6em rgba(0,0,0,.4);
 }
-.arch-node2 .tag{
-  font-family:var(--font-mono); font-weight:600; font-size:.78em; letter-spacing:.04em;
-  background:var(--surface-2); border:1px solid var(--line-strong); border-radius:.25em;
-  padding:.2em .6em; color:var(--accent); display:inline-block; margin-bottom:.3em;
-}
-.arch-node2 .name{display:block; font-size:.64em; color:var(--ink-dim); line-height:1.25;}
-.arch-node2.merge{
-  width:2.6em; height:2.6em; border-radius:50%; padding:0;
-  display:flex; align-items:center; justify-content:center;
-  background:var(--accent-ink); border-color:var(--accent);
-}
-.arch-node2.merge .tag{margin:0; background:none; border:none; padding:0; color:var(--accent); font-size:.72em;}
-.arch-node2.out{border-color:var(--good);}
-.arch-node2.out .tag{color:var(--good);}
-.arch-edge-label{
-  position:absolute; transform:translate(-50%,-50%); z-index:2;
-  font-family:var(--font-mono); font-size:.58em; color:var(--ink-faint);
-  background:var(--bg); padding:0 .35em; white-space:nowrap;
-}
-.arch-edge-label.feedback{color:var(--pending);}
+.pp-figure img{max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; display:block; border-radius:.1em;}
 
 /* ---------- SLIDE 5 : DUAL BACKGROUND ---------- */
 .duo{display:flex; gap:1.2em; flex:1; min-height:0;}
@@ -430,35 +409,8 @@ ul.plain li b{color:var(--ink); font-weight:600;}
         <span class="eyebrow">System architecture</span>
         <h1 class="slide-title">Two Signals In, One Loop Closed</h1>
         <p class="lede" style="max-width:60em;">Pixel-diff and a learned network merge into one persistence counter. What survives the filter stack gets segmented — and what expires blends back into the background it came from.</p>
-        <div class="arch-canvas">
-          <svg class="arch-svg" viewBox="0 0 1000 500" preserveAspectRatio="none">
-            <defs>
-              <marker id="archArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                <path d="M0,0 L10,5 L0,10 z" style="fill:var(--line-strong)"></path>
-              </marker>
-              <marker id="archArrowFb" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                <path d="M0,0 L10,5 L0,10 z" style="fill:var(--pending)"></path>
-              </marker>
-            </defs>
-            <path d="M84,250 L258,108" style="stroke:var(--line-strong);stroke-width:3;fill:none;" marker-end="url(#archArrow)"></path>
-            <path d="M84,250 L258,392" style="stroke:var(--line-strong);stroke-width:3;fill:none;" marker-end="url(#archArrow)"></path>
-            <path d="M282,106 L422,238" style="stroke:var(--line-strong);stroke-width:3;fill:none;" marker-end="url(#archArrow)"></path>
-            <path d="M282,394 L422,262" style="stroke:var(--line-strong);stroke-width:3;fill:none;" marker-end="url(#archArrow)"></path>
-            <path d="M457,250 L566,250" style="stroke:var(--line-strong);stroke-width:3;fill:none;" marker-end="url(#archArrow)"></path>
-            <path d="M582,250 L716,250" style="stroke:var(--line-strong);stroke-width:3;fill:none;" marker-end="url(#archArrow)"></path>
-            <path d="M732,250 L856,250" style="stroke:var(--line-strong);stroke-width:3;fill:none;" marker-end="url(#archArrow)"></path>
-            <path d="M872,250 L924,250" style="stroke:var(--line-strong);stroke-width:3;fill:none;" marker-end="url(#archArrow)"></path>
-            <path d="M876,232 C876,18 270,18 270,84" style="stroke:var(--pending);stroke-width:2.5;fill:none;stroke-dasharray:7 6;" marker-end="url(#archArrowFb)"></path>
-          </svg>
-          <div class="arch-node2" style="left:8%; top:50%;"><span class="tag">VIDEO</span><span class="name">fixed-camera feed</span></div>
-          <div class="arch-node2" style="left:27%; top:20%;"><span class="tag">BG</span><span class="name">bg_long + bg_adapt</span></div>
-          <div class="arch-node2" style="left:27%; top:80%;"><span class="tag">SIAMESE</span><span class="name">every ~10 frames</span></div>
-          <div class="arch-node2 merge" style="left:44%; top:50%;"><span class="tag">OR</span></div>
-          <div class="arch-node2" style="left:58%; top:50%;"><span class="tag">STATE</span><span class="name">per-pixel hit counter</span></div>
-          <div class="arch-node2" style="left:73%; top:50%;"><span class="tag">FILTERS</span><span class="name">8-stage FP gate</span></div>
-          <div class="arch-node2" style="left:87%; top:50%;"><span class="tag">SAM3</span><span class="name">pixel-precise mask</span></div>
-          <div class="arch-node2 out" style="left:94%; top:50%;"><span class="tag">MASK</span><span class="name">union → PNG / sec</span></div>
-          <div class="arch-edge-label feedback" style="left:50%; top:4%;">absorb → blend back into BG (α = 0.95)</div>
+        <div class="pp-figure">
+          <img src="../assets/architecture-diagram.png" alt="PSCDL 2026 pipeline architecture — dual-background persistence counter, 8-stage false-positive reject gate, and closed-loop background absorption">
         </div>
         <p style="font-family:var(--font-mono); font-size:.68em; color:var(--ink-faint); text-align:center;">p and c flow through every stage as arguments — never hard-coded, since the organisers may vary them at evaluation.</p>
       </section>
@@ -638,6 +590,7 @@ ul.plain li b{color:var(--ink); font-weight:600;}
   document.getElementById('nextBtn').addEventListener('click', function(){ show(i+1); });
   document.getElementById('prevBtn').addEventListener('click', function(){ show(i-1); });
   window.addEventListener('keydown', function(e){
+    if(e.target.tagName === 'VIDEO') return; // let native video controls (seek, play/pause) work
     if(['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)){ show(i+1); e.preventDefault(); }
     else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){ show(i-1); e.preventDefault(); }
     else if(e.key==='Home'){ show(0); }

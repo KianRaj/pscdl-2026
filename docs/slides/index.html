@@ -122,6 +122,26 @@ h1,h2,h3,p,ul,ol{margin:0;}
   border-top:1px solid var(--line); z-index:4;
   background:linear-gradient(transparent,var(--surface));
 }
+
+/* ---------- Speaker notes panel — press N to toggle, presenter-only ---------- */
+.notes-panel{
+  position:absolute; left:0; right:0; bottom:2.6em; max-height:44%;
+  background:rgba(8,11,15,.97); border-top:2px solid var(--accent);
+  padding:1.1em 2em 1.3em; overflow-y:auto; z-index:15;
+  transform:translateY(100%); opacity:0; pointer-events:none;
+  transition:transform .22s ease, opacity .22s ease;
+  font-family:var(--font-body); font-size:.72em; line-height:1.55; color:var(--ink);
+}
+.notes-panel.open{transform:translateY(0); opacity:1; pointer-events:auto;}
+.notes-panel .notes-label{
+  font-family:var(--font-mono); font-size:.85em; color:var(--accent);
+  text-transform:uppercase; letter-spacing:.1em; margin-bottom:.7em; display:block;
+}
+.notes-panel p{margin:0 0 .55em;}
+.notes-panel ul{margin:0 0 .55em; padding-left:1.3em;}
+.notes-panel li{margin-bottom:.3em; color:var(--ink-dim);}
+.notes-panel b{color:var(--ink);}
+@media (prefers-reduced-motion: reduce){.notes-panel{transition:none;}}
 .nav-btn{
   font-family:var(--font-mono); font-size:.85em; font-weight:600;
   width:1.9em;height:1.9em; border-radius:50%;
@@ -561,11 +581,17 @@ ul.plain li b{color:var(--ink); font-weight:600;}
 
     </main>
 
+    <div class="notes-panel" id="notesPanel">
+      <span class="notes-label">Speaker notes</span>
+      <div id="notesBody"></div>
+    </div>
+
     <footer class="hud-bottom">
       <button class="nav-btn" id="prevBtn" aria-label="Previous slide">‹</button>
       <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
       <span class="hud-count"><b id="curNum">01</b> / <span id="totalNum">14</span></span>
       <button class="nav-btn" id="nextBtn" aria-label="Next slide">›</button>
+      <button class="nav-btn" id="notesBtn" aria-label="Toggle speaker notes" title="Speaker notes (N)" style="font-size:.6em; width:2.2em;">N</button>
     </footer>
   </div>
 </div>
@@ -580,6 +606,27 @@ ul.plain li b{color:var(--ink); font-weight:600;}
   var fill = document.getElementById('progressFill');
   totalNum.textContent = String(total).padStart(2,'0');
 
+  var SPEAKER_NOTES = [
+    '<p><b>Open with the thesis, not the title.</b> "Appears, stays, settles — that\'s the signature we detect." State the headline numbers immediately: F1 0.8465, Precision 0.9429.</p><p>Quick intro — name, IIIT Delhi, individual submission. Keep it under 20 seconds; the content should carry the room, not the preamble.</p>',
+    '<p><b>This is the anchor slide — nothing else lands if this doesn\'t.</b> Walk it left to right, out loud: object arrives at t₀ → counts silently during P → <b>masked white only during [t₀+P, t₀+C]</b> → fades back into background.</p><ul><li>Say the numbers explicitly: P=60s, C=90s default → a 30-second active window.</li><li>Land this line: "p and c are read as function arguments at runtime — never hard-coded," since organisers can vary them during blind evaluation.</li></ul>',
+    '<p>Most seconds in every video are blank. A false alarm on <b>one</b> blank second scores F1=0 for that second — precision gets punished far harder than recall here.</p><p>This is the constraint the <b>entire rest of the talk</b> answers — say that explicitly so the filter-stack slide later doesn\'t feel like a random feature list.</p>',
+    '<p>This is the map — don\'t over-explain each box, the next several slides do that in depth. Trace it once, left to right: two backgrounds → AND → pixel-diff mask; Siamese network output OR-merges into the same signal → persistence counter → 8-gate filter stack → SAM3 → output mask.</p><p><b>Call out the dashed feedback loop specifically</b> — absorbed objects blend back into both backgrounds at 95%, closing the loop. Most similar systems in the literature miss this; it\'s worth a full sentence.</p>',
+    '<p>bg_long = frozen median of the first 15s (guaranteed-clean snapshot). bg_adapt = slow running average, absorbs gradual drift.</p><p>Say this line out loud: <b>"a pixel only counts as changed if it disagrees with BOTH memories."</b> Concrete example: the sun moving over 10 minutes eventually fools bg_adapt — a genuinely new object still differs from both.</p>',
+    '<p>One integer per pixel <b>is</b> the whole state machine — no separate state variable anywhere in the code. +1 when changed this frame, −decay when not — tolerates one noisy frame without erasing minutes of accumulated persistence.</p><p>The four states are just numeric ranges of that one counter: Background / Candidate / Confirmed / Absorb.</p>',
+    '<p><b>This is the "why precision is high" slide — spend real time here,</b> don\'t just read the 8 titles flatly.</p><ul><li>Pick two to walk concretely: the YOLO person filter (reject if a person\'s bbox covers ≥55% of the blob) and the CLIP semantic gate (reject if "infrastructure" prompt beats "object" prompt).</li><li>Tell the real story: audited test-set false positives (poles, signs, shadows), built filters specifically to reject those, validated they don\'t remove real true positives (chair, debris, box).</li></ul>',
+    '<p>Seed point = median of the actual persistent pixels, not the bbox centre — more precise for irregular or off-centre shapes.</p><p>Fixed 100px margin was tuned specifically: a 3× proportional expansion was tried and hurt small bags by pulling in nearby people.</p><p>Runs <b>once</b> per object, then the mask is cached for the whole active window — an efficiency point worth mentioning if asked about runtime.</p>',
+    '<p>Tell this as a story, not a feature list: tried as the <b>primary</b> signal first → produced 100k+ false "changed" pixels per frame on surveillance footage (domain shift — it was trained on public street-scene pairs) → demoted to a secondary, OR-combined signal.</p><p>If asked for numbers: val F1 ≈ 0.80 on VL-CMU-CD + PSCD.</p>',
+    '<p><b>Best story in the deck — slow down here.</b> Same predictions, same pixels — one if-statement changed the measured score from 0.06 to 0.85.</p><p>The fix in one sentence: predicting nothing, correctly, on a blank second is a <b>perfect</b> answer, not a zero — standard zero-division convention, same as sklearn.</p>',
+    '<p>The real test set ships with <b>no ground truth</b> — so how do you know you\'re not overfitting to the 5 videos you can see?</p><p>Manually audited every masked window in the test output, classified real vs. false positive by hand. Only added filters that are training-free / scene-agnostic (classical CV geometry, or a frozen CLIP model) — so they generalise to videos nobody ever got to check.</p>',
+    '<p>Walk the chart: video_3 and video_4 are near-perfect; video_2 is lower — occlusion (foreshadow the next slide, don\'t explain it fully yet).</p><p>Restate the overall numbers once more before moving on: F1 0.8465, Precision 0.9429, Recall 0.8760.</p>',
+    '<p><b>Say this confidently — don\'t rush past it.</b> Showing limitations builds credibility, it doesn\'t undercut the pitch.</p><ul><li>Heavy occlusion (object merging into a dense crowd) delays detection — video_2.</li><li>A few static signboards/poles still occasionally slip through — a deliberate trade-off, since tightening further started removing real objects too.</li></ul>',
+    '<p>Recap the one-line thesis once more, then open for questions.</p><p><b>Mentally prep for likely questions:</b> the dead-code file (pipeline/object_state.py — an earlier IoU-matching design, superseded), why not ByteTrack (min_hits=3 caused a 28s detection delay when occluded), and the F1 blank-blank scoring convention (flag it as an assumption to confirm with organisers, not a settled fact).</p>'
+  ];
+  var notesPanel = document.getElementById('notesPanel');
+  var notesBody  = document.getElementById('notesBody');
+  var notesOpen  = false;
+  function renderNotes(){ notesBody.innerHTML = SPEAKER_NOTES[i] || ''; }
+
   function show(n){
     n = Math.max(0, Math.min(total-1, n));
     slides[i].classList.remove('active');
@@ -587,11 +634,18 @@ ul.plain li b{color:var(--ink); font-weight:600;}
     slides[i].classList.add('active');
     curNum.textContent = String(i+1).padStart(2,'0');
     fill.style.width = ((i+1)/total*100).toFixed(1)+'%';
+    if(notesOpen) renderNotes();
   }
   document.getElementById('nextBtn').addEventListener('click', function(){ show(i+1); });
   document.getElementById('prevBtn').addEventListener('click', function(){ show(i-1); });
+  document.getElementById('notesBtn').addEventListener('click', function(){
+    notesOpen = !notesOpen;
+    notesPanel.classList.toggle('open', notesOpen);
+    if(notesOpen) renderNotes();
+  });
   window.addEventListener('keydown', function(e){
     if(e.target.tagName === 'VIDEO') return; // let native video controls (seek, play/pause) work
+    if(e.key==='n' || e.key==='N'){ document.getElementById('notesBtn').click(); return; }
     if(['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)){ show(i+1); e.preventDefault(); }
     else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){ show(i-1); e.preventDefault(); }
     else if(e.key==='Home'){ show(0); }

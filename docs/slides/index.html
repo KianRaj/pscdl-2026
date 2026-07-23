@@ -650,7 +650,9 @@ ul.plain li b{color:var(--ink); font-weight:600;}
     else if(e.key==='Home'){ show(0); }
     else if(e.key==='End'){ show(total-1); }
   });
-  show(0);
+  // Deep-link support: file.html#7 opens directly on slide 7 (used for exports too)
+  var hashN = parseInt(String(location.hash||'').replace('#',''),10);
+  show(Number.isFinite(hashN) && hashN>=1 ? hashN-1 : 0);
 
   // HUD clock — cosmetic, ticks like a live feed timestamp
   var clock = document.getElementById('clock');

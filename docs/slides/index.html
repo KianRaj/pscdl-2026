@@ -24,33 +24,32 @@
 
 /* ============================================================
    TOKENS
-   Deliberate single dark theme: this deck presents a surveillance
-   operator console. A "light mode" console is not a real artifact
-   of the subject, so no light variant is offered — a choice, not
-   an omission.
+   Deliberate single light theme: a clean white "printed report" surface,
+   matching the architecture figure's paper style. Colors validated for
+   CVD-safe separation on a white surface (see dataviz palette validator).
    ============================================================ */
 :root{
-  color-scheme: dark;
-  --bg:        #0a0d11;
-  --bg-grid:   rgba(233,243,246,.035);
-  --surface:   #121820;
-  --surface-2: #1a222b;
-  --line:      #263039;
-  --line-strong:#37434e;
-  --ink:       #edf3f6;
-  --ink-dim:   #93a3af;
-  --ink-faint: #5c6970;
-  --accent:    #ff9d47;
-  --accent-ink:#3a2410;
-  --good:      #4ad991;
-  --good-ink:  #0c2318;
-  --pending:   #f0c94e;
-  --pending-ink:#2b2205;
-  --reject:    #ef6a72;
-  --reject-ink:#2b0f11;
-  --chart-1:   #3987e5; /* F1 */
+  color-scheme: light;
+  --bg:        #ffffff;
+  --bg-grid:   rgba(20,25,32,.035);
+  --surface:   #f6f7f9;
+  --surface-2: #eceff2;
+  --line:      #dde2e7;
+  --line-strong:#b7bfc7;
+  --ink:       #14181d;
+  --ink-dim:   #5b6570;
+  --ink-faint: #88929c;
+  --accent:    #b45309;
+  --accent-ink:#fdecd2;
+  --good:      #1a7d3a;
+  --good-ink:  #e6f6ea;
+  --pending:   #a3690b;
+  --pending-ink:#fdf1de;
+  --reject:    #b3261e;
+  --reject-ink:#fbe9e7;
+  --chart-1:   #2a78d6; /* F1 */
   --chart-2:   #1baf7a; /* Precision */
-  --chart-3:   #9085e9; /* Recall */
+  --chart-3:   #4a3aa7; /* Recall */
   --font-display:'Big Shoulders Display','Arial Narrow',sans-serif;
   --font-body:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
   --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
@@ -253,8 +252,8 @@ code, .mono{font-family:var(--font-mono);}
 .pp-figure{
   flex:1; min-height:0; display:flex; align-items:center; justify-content:center;
   background:#ffffff; border-radius:.5em; padding:.7em 1em;
-  border-top:.35em solid var(--accent);
-  box-shadow:0 .6em 2.2em rgba(0,0,0,.5);
+  border:1px solid var(--line-strong); border-top:.35em solid var(--accent);
+  box-shadow:0 .3em 1em rgba(20,25,32,.08);
 }
 .pp-figure img{max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; display:block; border-radius:.1em;}
 .s-arch{padding-top:1.3em; padding-bottom:.9em;}

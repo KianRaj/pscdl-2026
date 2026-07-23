@@ -356,6 +356,18 @@ ul.plain li b{color:var(--ink); font-weight:600;}
   .tl-confirmed{animation:pulse 2.4s ease-in-out infinite;}
 }
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--good) 35%, transparent);}50%{box-shadow:0 0 0 .5em transparent;}}
+
+/* ---------- Print / PDF export — one clean slide per page, no UI chrome ---------- */
+@media print{
+  @page{ size:13.333in 7.5in; margin:0; }
+  html,body{ width:13.333in; height:7.5in; }
+  .stage{ position:static; width:13.333in; height:7.5in; }
+  .console{ width:13.333in !important; height:7.5in !important; font-size:15px; }
+  .reticle,.hud-top,.hud-bottom,.notes-panel{ display:none !important; }
+  .deck{ top:0; bottom:0; }
+  .slide{ opacity:1 !important; transform:none !important; pointer-events:none !important; display:none; }
+  .slide.active{ display:flex !important; }
+}
 </style>
 </head>
 <body>
@@ -523,25 +535,8 @@ ul.plain li b{color:var(--ink); font-weight:600;}
         <p class="lede" style="max-width:60em; margin:0 auto; text-align:center;">Predicting nothing, correctly, is a <em>perfect</em> answer — not a zero. Since most seconds in every video are blank, this single zero-division convention dominated the entire aggregate score. Same predictions, same pixels — one <code class="mono">if</code> statement changed the measured result by 14×.</p>
       </section>
 
-      <!-- 11 — AUDIT METHODOLOGY -->
-      <section class="slide" data-n="11">
-        <span class="eyebrow">Validating blind</span>
-        <h1 class="slide-title">We Audited Ourselves, By Hand</h1>
-        <p class="lede">The real test set ships with no ground truth. So we built our own.</p>
-        <div class="loop-row">
-          <div class="loop-node"><span class="step">01</span><div class="txt">Watch every masked window in the test output</div></div>
-          <div class="loop-arrow">›</div>
-          <div class="loop-node"><span class="step">02</span><div class="txt">Classify it: real object, or pole / sign / shadow?</div></div>
-          <div class="loop-arrow">›</div>
-          <div class="loop-node"><span class="step">03</span><div class="txt">Add a training-free, scene-agnostic filter</div></div>
-          <div class="loop-arrow">›</div>
-          <div class="loop-node"><span class="step">04</span><div class="txt">Re-verify every known true positive still survives</div></div>
-        </div>
-        <div class="callout good"><b>Why training-free matters here</b><span>Any filter tuned on the 5 visible videos risks overfitting to exactly those scenes. Classical CV geometry and a frozen foundation model (CLIP) generalise to the unseen test set by construction.</span></div>
-      </section>
-
       <!-- 12 — RESULTS CHART -->
-      <section class="slide" data-n="12">
+      <section class="slide" data-n="11">
         <span class="eyebrow">Sample-set performance</span>
         <h1 class="slide-title">Five Videos, Known Ground Truth</h1>
         <div class="chart-wrap">
@@ -556,7 +551,7 @@ ul.plain li b{color:var(--ink); font-weight:600;}
       </section>
 
       <!-- 13 — LIMITATIONS -->
-      <section class="slide" data-n="13">
+      <section class="slide" data-n="12">
         <span class="eyebrow">Honest limits</span>
         <h1 class="slide-title">Where It Still Slips</h1>
         <div class="limit-row">
@@ -567,7 +562,7 @@ ul.plain li b{color:var(--ink); font-weight:600;}
       </section>
 
       <!-- 14 — CLOSE -->
-      <section class="slide s-close" data-n="14">
+      <section class="slide s-close" data-n="13">
         <span class="eyebrow">Summary</span>
         <h1 class="slide-title">Find The Signature.<br>Reject Everything Else.</h1>
         <p class="lede" style="max-width:56em;">Appears. Stays. Settles. A dual-background persistence counter finds that signature with an explicit lifecycle tied to p and c; an eight-stage, mostly training-free filter stack keeps precision high against everything that isn't one.</p>
@@ -616,7 +611,6 @@ ul.plain li b{color:var(--ink); font-weight:600;}
     '<p>Seed point = median of the actual persistent pixels, not the bbox centre — more precise for irregular or off-centre shapes.</p><p>Fixed 100px margin was tuned specifically: a 3× proportional expansion was tried and hurt small bags by pulling in nearby people.</p><p>Runs <b>once</b> per object, then the mask is cached for the whole active window — an efficiency point worth mentioning if asked about runtime.</p>',
     '<p>Tell this as a story, not a feature list: tried as the <b>primary</b> signal first → produced 100k+ false "changed" pixels per frame on surveillance footage (domain shift — it was trained on public street-scene pairs) → demoted to a secondary, OR-combined signal.</p><p>If asked for numbers: val F1 ≈ 0.80 on VL-CMU-CD + PSCD.</p>',
     '<p><b>Best story in the deck — slow down here.</b> Same predictions, same pixels — one if-statement changed the measured score from 0.06 to 0.85.</p><p>The fix in one sentence: predicting nothing, correctly, on a blank second is a <b>perfect</b> answer, not a zero — standard zero-division convention, same as sklearn.</p>',
-    '<p>The real test set ships with <b>no ground truth</b> — so how do you know you\'re not overfitting to the 5 videos you can see?</p><p>Manually audited every masked window in the test output, classified real vs. false positive by hand. Only added filters that are training-free / scene-agnostic (classical CV geometry, or a frozen CLIP model) — so they generalise to videos nobody ever got to check.</p>',
     '<p>Walk the chart: video_3 and video_4 are near-perfect; video_2 is lower — occlusion (foreshadow the next slide, don\'t explain it fully yet).</p><p>Restate the overall numbers once more before moving on: F1 0.8465, Precision 0.9429, Recall 0.8760.</p>',
     '<p><b>Say this confidently — don\'t rush past it.</b> Showing limitations builds credibility, it doesn\'t undercut the pitch.</p><ul><li>Heavy occlusion (object merging into a dense crowd) delays detection — video_2.</li><li>A few static signboards/poles still occasionally slip through — a deliberate trade-off, since tightening further started removing real objects too.</li></ul>',
     '<p>Recap the one-line thesis once more, then open for questions.</p><p><b>Mentally prep for likely questions:</b> the dead-code file (pipeline/object_state.py — an earlier IoU-matching design, superseded), why not ByteTrack (min_hits=3 caused a 28s detection delay when occluded), and the F1 blank-blank scoring convention (flag it as an assumption to confirm with organisers, not a settled fact).</p>'
